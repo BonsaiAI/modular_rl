@@ -3,13 +3,13 @@ In this codebase, the "Agent" is a container with the policy, value function, et
 This file contains a bunch of agents
 """
 
-
-from modular_rl import *
 from gym.spaces import Box, Discrete
-from collections import OrderedDict
 from keras.models import Sequential
 from keras.layers.core import Dense
-from keras.layers.advanced_activations import LeakyReLU
+
+from modular_rl.core import Categorical, ConcatFixedStd, StochPolicyKeras, NnVf, IDENTITY, update_default_config, \
+    PG_OPTIONS, comma_sep_ints, DiagGauss
+from modular_rl.filters import ZFilter
 from modular_rl.trpo import TrpoUpdater
 from modular_rl.ppo import PpoLbfgsUpdater, PpoSgdUpdater
 
@@ -33,12 +33,12 @@ def make_mlps(ob_space, ac_space, cfg):
         net.add(Dense(layeroutsize, activation=cfg["activation"], **inshp))
     if isinstance(ac_space, Box):
         net.add(Dense(outdim))
-        Wlast = net.layers[-1].W
+        Wlast = net.layers[-1].kernel
         Wlast.set_value(Wlast.get_value(borrow=True)*0.1)
         net.add(ConcatFixedStd())
     else:
         net.add(Dense(outdim, activation="softmax"))
-        Wlast = net.layers[-1].W
+        Wlast = net.layers[-1].kernel
         Wlast.set_value(Wlast.get_value(borrow=True)*0.1)
     policy = StochPolicyKeras(net, probtype)
     vfnet = Sequential()
@@ -64,7 +64,7 @@ def make_deterministic_mlp(ob_space, ac_space, cfg):
         net.add(Dense(layeroutsize, activation="tanh", **inshp))
     inshp = dict(input_shape=ob_space.shape) if len(hid_sizes) == 0 else {}
     net.add(Dense(outdim, **inshp))
-    Wlast = net.layers[-1].W
+    Wlast = net.layers[-1].kernel
     Wlast.set_value(Wlast.get_value(borrow=True)*0.1)
     policy = StochPolicyKeras(net, probtype)
     return policy
